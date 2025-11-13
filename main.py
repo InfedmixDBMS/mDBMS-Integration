@@ -1,4 +1,5 @@
 from QueryProcessor import QueryProcessor
+from ConcurrencyControl.src.lock_based_concurrency_control_manager import LockBasedConcurrencyControlManager
 from src import (
     IntegratedQueryOptimizer,
     IntegratedConcurrencyManager,
@@ -8,9 +9,12 @@ from src import (
 
 
 def main():
+    ccm = LockBasedConcurrencyControlManager()
+    integrated_ccm = IntegratedConcurrencyManager(ccm)
+    
     processor = QueryProcessor(
         optimizer=IntegratedQueryOptimizer(),
-        concurrency_manager=IntegratedConcurrencyManager(),
+        concurrency_manager=integrated_ccm,
         recovery_manager=IntegratedFailureRecoveryManager(),
         storage_manager=IntegratedStorageManager()
     )
@@ -40,6 +44,10 @@ def main():
     
     print("\n=== Converted Query Plan ===")
     print(plan.print_tree())
+    
+    result = processor.get_executor().execute_with_transaction(plan)
+    print("\n=== Query Result ===")
+    print(result)
     
     
 if __name__ == "__main__":
