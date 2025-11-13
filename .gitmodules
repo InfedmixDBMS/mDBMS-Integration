@@ -1,0 +1,9 @@
+[submodule "QueryProcessor"]
+	path = QueryProcessor
+	url = https://github.com/InfedmixDBMS/QueryProcessor.git
+[submodule "QueryOptimization"]
+	path = QueryOptimization
+	url = https://github.com/InfedmixDBMS/QueryOptimization.git
+[submodule "ConcurrencyControl"]
+	path = ConcurrencyControl
+	url = https://github.com/InfedmixDBMS/ConcurrencyControl.git
