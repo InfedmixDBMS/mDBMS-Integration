@@ -1,0 +1,208 @@
+@startuml Query Optimizer Class Diagram
+
+title Query Optimizer - Class Diagram
+note as FileStructure
+  **File Structure (PEP 8 Compliant)**
+  src/
+  ├── optimizer/
+  │   ├── optimization_engine.py
+  │   ├── plan_optimizer.py
+  │   ├── cost_calculator.py
+  │   └── rules.py
+  ├── parser/
+  │   ├── parser.py
+  │   └── lexer.py
+  └── tree/
+      ├── nodes.py
+      ├── query_tree.py
+      └── parsed_query.py
+end note
+
+' Komponen utama interface
+package "Query Optimizer" {
+    class OptimizationEngine {
+        + parse_query(query: str): ParsedQuery
+        + optimize_query(query: ParsedQuery): ParsedQuery
+        + get_cost(query: ParsedQuery): int
+    }
+}
+
+' Struktur tree
+package "Komponen Tree" {
+    class ParsedQuery {
+        - query: str
+        - query_tree: QueryTree
+        - tables: List[str]
+        + __init__(query: str, query_tree: QueryTree)
+        + collect_tables(node: QueryTree): void
+        + print_tree(node: QueryTree, level: int): void
+    }
+
+    class QueryTree {
+        - type: str
+        - val: Any
+        - childs: List[QueryTree]
+        - parent: QueryTree
+        + __init__(type: str, val: Any, childs: List[QueryTree], parent: QueryTree)
+        + add_child(child: QueryTree): void
+        + print_tree(level: int): void
+        + condition_node_to_string(node: ConditionNode): str
+        + __str__(): str
+    }
+}
+
+' Tipe node dan kondisi
+package "Komponen Node" {
+    enum NodeType {
+        PROJECT
+        SELECT
+        TABLE
+        JOIN
+        CARTESIAN_PRODUCT
+        NATURAL_JOIN
+        HASH_JOIN
+        UPDATE
+        SET
+        ORDER_BY
+        GROUP_BY
+        HAVING
+        LIMIT
+        CONDITION
+        + __str__(): str
+    }
+
+    abstract class ConditionNode {
+    }
+
+    class ConditionOperator {
+        - operator: str
+        - left: ConditionNode
+        - right: ConditionNode
+        + __init__(operator: str, left: ConditionNode, right: ConditionNode)
+        + __eq__(other: ConditionOperator): bool
+        + __repr__(): str
+    }
+
+    class ConditionLeaf {
+        - condition: str
+        + __init__(condition: str)
+        + __eq__(other: ConditionLeaf): bool
+        + __repr__(): str
+    }
+}
+
+' Komponen parser
+package "Komponen Parser" {
+    class Parser {
+        + parse_query(query: str): ParsedQuery
+        + parse_condition(condition_tokens: List[str]): ConditionNode
+    }
+
+    class Lexer {
+        + tokenize(query: str): List[str]
+        + KEYWORDS: Set[str]
+    }
+}
+
+' Komponen optimizer
+package "Komponen Optimisasi" {
+    class PlanOptimizer {
+        - rules: OptimizationRules
+        + __init__(): void
+        + optimize_tree(tree: QueryTree): QueryTree
+        + apply_rules(tree: QueryTree): QueryTree
+    }
+
+    class CostCalculator {
+        - statistics: Statistic
+        + __init__(statistics: Statistic): void
+        + get_cost(parsed_query: ParsedQuery): int
+        + calculate_node_cost(node: QueryTree): int
+        - _calculate_tree_cost(tree: QueryTree): int
+    }
+
+    class OptimizationRules {
+        + {static} push_down_selection(tree: QueryTree): QueryTree
+        + {static} push_down_projection(tree: QueryTree): QueryTree
+        + {static} combine_selections(tree: QueryTree): QueryTree
+        + {static} combine_cartesian_with_selection(tree: QueryTree): QueryTree
+        + {static} reorder_joins(tree: QueryTree): QueryTree
+        + {static} apply_associativity(tree: QueryTree): QueryTree
+        + {static} distribute_selection_over_join(tree: QueryTree): QueryTree
+        + {static} distribute_projection_over_join(tree: QueryTree): QueryTree
+    }
+}
+
+' Interface statistik untuk Storage Manager
+package "Interface Storage" {
+    class Statistic {
+        - nr: int
+        - br: int
+        - lr: int
+        - fr: int
+        - V_A_r: int
+        + __init__(...)
+    }
+}
+
+' Relasi antar kelas
+OptimizationEngine ..> Parser : menggunakan
+OptimizationEngine ..> PlanOptimizer : menggunakan
+OptimizationEngine ..> CostCalculator : menggunakan
+
+Parser ..> Lexer : menggunakan
+Parser ..> ParsedQuery : membuat
+Parser ..> QueryTree : membuat
+Parser ..> ConditionNode : membuat
+
+ParsedQuery *-- QueryTree : berisi
+QueryTree --> NodeType : menggunakan
+QueryTree *-- ConditionNode : dapat berisi
+
+ConditionNode <|-- ConditionOperator
+ConditionNode <|-- ConditionLeaf
+ConditionOperator o-- ConditionNode : kiri/kanan
+
+PlanOptimizer *-- OptimizationRules : memiliki
+PlanOptimizer ..> QueryTree : memanipulasi
+CostCalculator o-- Statistic : dapat memiliki
+CostCalculator ..> QueryTree : menganalisis
+
+' Catatan
+note right of OptimizationEngine
+    Interface utama untuk komponen Query Optimizer.
+    Mengimplementasikan tiga method yang diperlukan dari spesifikasi:
+    1. parse_query - parsing string SQL menjadi ParsedQuery
+    2. optimize_query - optimasi parsed query menggunakan aturan
+    3. get_cost - kalkulasi biaya eksekusi
+end note
+
+note right of OptimizationRules
+    Mengimplementasikan aturan ekivalensi dari spesifikasi:
+    1. Dekomposisi seleksi konjungtif
+    2. Komutativitas seleksi
+    3. Eliminasi proyeksi cascade
+    4. Seleksi dengan Cartesian product = join
+    5. Komutativitas join
+    6. Asosiatifitas join
+    7. Distribusi seleksi terhadap join
+    8. Distribusi proyeksi terhadap join
+end note
+
+note bottom of Statistic
+    Statistik yang disediakan oleh Storage Manager:
+    - nr: jumlah tuple dalam relasi r
+    - br: jumlah blok yang berisi tuple dari r
+    - lr: ukuran tuple dari r
+    - fr: blocking factor dari r
+    - V(A,r): nilai distinct dalam r untuk atribut A
+end note
+
+note left of QueryTree
+    Representasi tree dari parsed query.
+    Setiap node memiliki tipe (NodeType) dan nilai.
+    Mendukung operasi seperti PROJECT, SELECT,
+    JOIN, TABLE, ORDER_BY, GROUP_BY, HAVING, dll.
+end note
+
+@enduml
