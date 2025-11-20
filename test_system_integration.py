@@ -80,7 +80,8 @@ def test_system_integration():
             optimizer = processor.get_optimizer()
             try:
                 plan = optimizer.optimize(query)
-                print(f"{client_tag} Query Plan Generated:\n{plan}\n")
+                print(f"{client_tag} Query Plan Generated:\n")
+                print(plan.print_tree() + "\n")
             except Exception as e:
                 print(f"{client_tag} Optimization skipped/failed (expected for DDL/some DML): {e}")
 

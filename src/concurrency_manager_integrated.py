@@ -1,7 +1,9 @@
 from QueryProcessor.interfaces import AbstractConcurrencyControlManager
+from QueryProcessor.interfaces.concurrency_control_interface import LockResult
 from ConcurrencyControl.src.concurrency_control_manager import ConcurrencyControlManager
-from ConcurrencyControl.src.row_action import RowAction
+from ConcurrencyControl.src.row_action import TableAction
 from ConcurrencyControl.src.transaction_status import TransactionStatus
+from ConcurrencyControl.src.concurrency_response import LockStatus
 from typing import Optional
 
 
@@ -83,25 +85,35 @@ class IntegratedConcurrencyManager(AbstractConcurrencyControlManager):
         transaction_id: int, 
         resource_id: str, 
         lock_type: str
-    ) -> bool:
+    ) -> LockResult:
         try:
-            row_id = self._parse_resource_id(resource_id)
-            row_action = RowAction.READ if lock_type == "READ" else RowAction.WRITE
+            table_name = resource_id
+            
+            table_action = TableAction.READ if lock_type == "READ" else TableAction.WRITE
             
             if self.verbose:
-                print(f"{self.tag} Transaction {transaction_id} requesting {lock_type} lock on {resource_id}")
+                print(f"{self.tag} Transaction {transaction_id} requesting {lock_type} lock on {table_name}")
 
-            response = self.ccm.transaction_query(transaction_id, row_action, row_id)
+            response = self.ccm.transaction_query(transaction_id, table_action, table_name)
             
-            if response and hasattr(response, 'query_allowed'):
+            if response:
+                status_str = "FAILED"
+                if response.status == LockStatus.GRANTED:
+                    status_str = "GRANTED"
+                elif response.status == LockStatus.WAITING:
+                    status_str = "WAITING"
+                
                 if self.verbose:
-                    print(f"{self.tag} Lock response for {transaction_id}: {response.query_allowed}")
-                return response.query_allowed
-            return True
+                    print(f"{self.tag} Lock response for {transaction_id}: {response.query_allowed} (Status: {status_str})")
+                
+                return LockResult(granted=response.query_allowed, status=status_str)
+            
+            return LockResult(granted=True, status="GRANTED")
+            
         except Exception as e:
             if self.verbose:
                 print(f"{self.tag} Lock request failed for transaction {transaction_id}: {e}")
-            return False
+            return LockResult(granted=False, status="FAILED")
     
     def check_deadlock(self, transaction_id: int) -> bool:
         try:
