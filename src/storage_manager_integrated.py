@@ -4,8 +4,8 @@ from typing import List, Dict, Any, Optional
 from QueryProcessor.models import Rows
 
 class IntegratedStorageManager(AbstractStorageManager):
-    def __init__(self):
-        self.engine = StorageEngine()
+    def __init__(self, engine: StorageEngine):
+        self.engine = engine
     
     # DataRetrieval: 
     #   table -> str, 
