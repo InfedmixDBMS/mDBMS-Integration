@@ -15,7 +15,12 @@ from QueryProcessor.models import (
     OrderByClause,
     JoinCondition,
     ComparisonOperator,
-    LogicalOperator
+    LogicalOperator,
+    InsertPlan,
+    UpdatePlan,
+    DeletePlan,
+    CreateTablePlan,
+    DropTablePlan
 )
 from typing import Optional, List, Union
 import re
@@ -27,8 +32,20 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
         self.engine = OptimizationEngine()
         
     def optimize(self, query: str) -> QueryPlan:
+        # Simple regex for DDL/DML
+        if re.match(r'^\s*CREATE\s+TABLE', query, re.IGNORECASE):
+            return self._parse_create_table(query)
+        elif re.match(r'^\s*INSERT\s+INTO', query, re.IGNORECASE):
+            return self._parse_insert(query)
+        elif re.match(r'^\s*DELETE\s+FROM', query, re.IGNORECASE):
+            return self._parse_delete(query)
+        elif re.match(r'^\s*UPDATE', query, re.IGNORECASE):
+            return self._parse_update(query)
+        elif re.match(r'^\s*DROP\s+TABLE', query, re.IGNORECASE):
+            return self._parse_drop_table(query)
+            
         parsed_query = self.engine.parse_query(query)
-        parsed_query.print_tree()
+        # parsed_query.print_tree()
         return self.convert_parsed_to_plan(parsed_query)
     
     def convert_parsed_to_plan(self, parsed_query: ParsedQuery) -> QueryPlan:
@@ -234,3 +251,84 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
             return self._extract_table_name(node.childs[0])
         else:
             return "unknown_table"
+    
+    def _parse_create_table(self, query: str) -> CreateTablePlan:
+        # CREATE TABLE table_name (col1 type1, col2 type2)
+        match = re.match(r'^\s*CREATE\s+TABLE\s+(\w+)\s*\((.+)\)', query, re.IGNORECASE)
+        if not match:
+            raise ValueError("Invalid CREATE TABLE syntax")
+        
+        table_name = match.group(1)
+        columns_str = match.group(2)
+        
+        schema = {}
+        for col_def in columns_str.split(','):
+            parts = col_def.strip().split()
+            if len(parts) >= 2:
+                col_name = parts[0]
+                col_type = parts[1]
+                schema[col_name] = col_type
+        
+        return CreateTablePlan(table_name=table_name, schema=schema)
+
+    def _parse_insert(self, query: str) -> InsertPlan:
+        # INSERT INTO table_name VALUES (val1, val2)
+        match = re.match(r'^\s*INSERT\s+INTO\s+(\w+)\s+VALUES\s*\((.+)\)', query, re.IGNORECASE)
+        if not match:
+            raise ValueError("Invalid INSERT syntax")
+        
+        table_name = match.group(1)
+        values_str = match.group(2)
+        
+        values = []
+        for val in values_str.split(','):
+            val = val.strip()
+            parsed_val = self._parse_value(val)
+            values.append(parsed_val)
+            
+        return InsertPlan(table_name=table_name, columns=[], values=values)
+
+    def _parse_delete(self, query: str) -> DeletePlan:
+        # DELETE FROM table_name [WHERE condition]
+        match = re.match(r'^\s*DELETE\s+FROM\s+(\w+)(?:\s+WHERE\s+(.+))?', query, re.IGNORECASE)
+        if not match:
+            raise ValueError("Invalid DELETE syntax")
+            
+        table_name = match.group(1)
+        where_clause = match.group(2)
+        
+        where_condition = None
+        if where_clause:
+            where_condition = self._parse_simple_condition(where_clause)
+            
+        return DeletePlan(table_name=table_name, where=where_condition)
+
+    def _parse_update(self, query: str) -> UpdatePlan:
+        # UPDATE table_name SET col=val [WHERE condition]
+        match = re.match(r'^\s*UPDATE\s+(\w+)\s+SET\s+(.+?)(?:\s+WHERE\s+(.+))?$', query, re.IGNORECASE)
+        if not match:
+            raise ValueError("Invalid UPDATE syntax")
+            
+        table_name = match.group(1)
+        set_clause_str = match.group(2)
+        where_clause = match.group(3)
+        
+        set_clause = {}
+        for assignment in set_clause_str.split(','):
+            parts = assignment.split('=')
+            if len(parts) == 2:
+                col = parts[0].strip()
+                val = self._parse_value(parts[1].strip())
+                set_clause[col] = val
+        
+        where_condition = None
+        if where_clause:
+            where_condition = self._parse_simple_condition(where_clause)
+            
+        return UpdatePlan(table_name=table_name, set_clause=set_clause, where=where_condition)
+
+    def _parse_drop_table(self, query: str) -> DropTablePlan:
+        match = re.match(r'^\s*DROP\s+TABLE\s+(\w+)', query, re.IGNORECASE)
+        if not match:
+            raise ValueError("Invalid DROP TABLE syntax")
+        return DropTablePlan(table_name=match.group(1))

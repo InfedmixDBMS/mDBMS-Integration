@@ -7,3 +7,6 @@
 [submodule "ConcurrencyControl"]
 	path = ConcurrencyControl
 	url = https://github.com/InfedmixDBMS/ConcurrencyControl.git
+[submodule "StorageManager"]
+	path = StorageManager
+	url = https://github.com/InfedmixDBMS/StorageManager.git

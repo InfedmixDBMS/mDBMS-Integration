@@ -1,0 +1,44 @@
+{
+  "mahasiswa": {
+    "file_path": "storage/data/mahasiswa.dat",
+    "row_size": 0,
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "length": 4
+      },
+      {
+        "name": "nama",
+        "type": "varchar",
+        "length": 100
+      },
+      {
+        "name": "ipk",
+        "type": "float",
+        "length": 4
+      }
+    ]
+  },
+  "products": {
+    "file_path": "storage/data/products.dat",
+    "row_size": 0,
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "length": 4
+      },
+      {
+        "name": "name",
+        "type": "varchar",
+        "length": 100
+      },
+      {
+        "name": "price",
+        "type": "float",
+        "length": 4
+      }
+    ]
+  }
+}
