@@ -1,5 +1,5 @@
 from QueryProcessor.interfaces import AbstractStorageManager
-from StorageManager.classes import StorageEngine, Schema, DataRetrieval, DataWrite, DataDeletion
+from StorageManager.classes.API import StorageEngine, Schema, DataRetrieval, DataWrite, DataDeletion
 from typing import List, Dict, Any, Optional
 from QueryProcessor.models import Rows
 
