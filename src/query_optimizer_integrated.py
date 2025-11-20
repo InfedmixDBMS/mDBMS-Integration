@@ -27,6 +27,7 @@ import re
 
 
 class IntegratedQueryOptimizer(AbstractQueryOptimizer):
+
     def __init__(self):
         self.engine = OptimizationEngine()
         
@@ -56,7 +57,7 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
         if node_type == "TABLE":
             # Leaf node: TableScanNode
             table_name = node.val
-            return TableScanNode(table_name=table_name)
+            return TableScanNode(table_name = table_name)
         
         elif node_type == "SELECT":
             # Filter node dengan WHERE condition
@@ -65,7 +66,7 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
             
             child_plan = self._convert_tree_node(node.childs[0])
             condition = self._convert_condition(node.val)
-            return FilterNode(child=child_plan, condition=condition)
+            return FilterNode(child = child_plan, condition = condition)
         
         elif node_type == "PROJECT":
             # Project node dengan SELECT columns

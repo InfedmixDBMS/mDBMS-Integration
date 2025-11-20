@@ -15,6 +15,7 @@ from src.storage_manager_integrated import IntegratedStorageManager
 from src.query_optimizer_integrated import IntegratedQueryOptimizer
 from src.failure_recovery_integrated import IntegratedFailureRecoveryManager
 from ConcurrencyControl.src.lock_based_concurrency_control_manager import LockBasedConcurrencyControlManager
+from StorageManager.classes.API import StorageEngine
 
 class Colors:
     HEADER = '\033[95m'
@@ -34,14 +35,15 @@ def test_system_integration():
     
     # Initialize components
     print(f"\n{Colors.OKCYAN}[INIT]{Colors.ENDC} Initializing components...")
-    storage_manager = IntegratedStorageManager()
+    storage_engine = StorageEngine()
+    storage_manager = IntegratedStorageManager(storage_engine)
     ccm = LockBasedConcurrencyControlManager()
     concurrency_manager = IntegratedConcurrencyManager(ccm)
     query_optimizer = IntegratedQueryOptimizer()
     recovery_manager = IntegratedFailureRecoveryManager()
     
     # Enable verbose mode
-    storage_manager.setVerbose(True)
+    # storage_manager.setVerbose(True) # Not implemented in real storage manager integration
     concurrency_manager.setVerbose(True)
     
     processor = QueryProcessor(

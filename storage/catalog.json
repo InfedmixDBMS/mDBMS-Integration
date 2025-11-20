@@ -1,0 +1,23 @@
+{
+  "products": {
+    "file_path": "storage/data/products.dat",
+    "row_size": 0,
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "length": 4
+      },
+      {
+        "name": "name",
+        "type": "varchar",
+        "length": 50
+      },
+      {
+        "name": "price",
+        "type": "int",
+        "length": 4
+      }
+    ]
+  }
+}
