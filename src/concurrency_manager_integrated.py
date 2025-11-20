@@ -51,17 +51,30 @@ class IntegratedConcurrencyManager(AbstractConcurrencyControlManager):
     
     def rollback_transaction(self, transaction_id: int) -> bool:
         try:
-            status = self.ccm.transaction_get_status(transaction_id)
-            if status == TransactionStatus.ACTIVE:
-                self.ccm.transaction_abort(transaction_id)
-                self.ccm.transaction_end(transaction_id)
-                return True
-            elif status == TransactionStatus.PARTIALLY_COMMITTED:
-                self.ccm.transaction_rollback(transaction_id)
-                self.ccm.transaction_abort(transaction_id)
-                self.ccm.transaction_end(transaction_id)
-                return True
-            return False
+            self.ccm.transaction_rollback(transaction_id)
+            return True
+            # status = self.ccm.transaction_get_status(transaction_id)
+            # if status == TransactionStatus.ACTIVE:
+            #     self.ccm.transaction_rollback(transaction_id)
+            #     self.ccm.transaction_abort(transaction_id)
+            #     self.ccm.transaction_end(transaction_id)
+            #     return True
+            # elif status == TransactionStatus.PARTIALLY_COMMITTED:
+            #     self.ccm.transaction_rollback(transaction_id)
+            #     self.ccm.transaction_abort(transaction_id)
+            #     self.ccm.transaction_end(transaction_id)
+            #     return True
+            # elif status == TransactionStatus.FAILED:
+            #     try:
+            #         self.ccm.transaction_abort(transaction_id)
+            #     except:
+            #         pass
+            #     self.ccm.transaction_end(transaction_id)
+            #     return True
+            # elif status == TransactionStatus.ABORTED:
+            #     self.ccm.transaction_end(transaction_id)
+            #     return True
+            # return False
         except Exception as e:
             print(f"Rollback failed: {e}")
             return False
