@@ -111,15 +111,22 @@ class IntegratedConcurrencyManager(AbstractConcurrencyControlManager):
             
             if response:
                 status_str = "FAILED"
+                granted = False
+                
                 if response.status == LockStatus.GRANTED:
                     status_str = "GRANTED"
+                    granted = True
                 elif response.status == LockStatus.WAITING:
                     status_str = "WAITING"
+                    granted = False  # NOT granted yet, should retry
+                elif response.status == LockStatus.FAILED:
+                    status_str = "FAILED"
+                    granted = False
                 
                 if self.verbose:
-                    print(f"{self.tag} Lock response for {transaction_id}: {response.query_allowed} (Status: {status_str})")
+                    print(f"{self.tag} Lock response for {transaction_id}: Status={status_str}, Granted={granted}")
                 
-                return LockResult(granted=response.query_allowed, status=status_str)
+                return LockResult(granted=granted, status=status_str, wait_time=0.1)
             
             return LockResult(granted=True, status="GRANTED")
             
