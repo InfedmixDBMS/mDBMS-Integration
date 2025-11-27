@@ -54,5 +54,5 @@ class IntegratedStorageManager(AbstractStorageManager):
     def get_next_row_id(self, table: str) -> int:
         return StorageEngine.get_next_row_id(table)
     
-    # def load_schema(self, table: str) -> list:
-    #     return StorageEngine.load_schema(table)
+    def load_schema_names(self, table: str) -> list:
+        return StorageEngine.load_schema_names(table)
