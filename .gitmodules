@@ -10,3 +10,6 @@
 [submodule "StorageManager"]
 	path = StorageManager
 	url = https://github.com/InfedmixDBMS/StorageManager.git
+[submodule "FailureRecoveryManager"]
+	path = FailureRecoveryManager
+	url = https://github.com/InfedmixDBMS/FailureRecoveryManager.git
