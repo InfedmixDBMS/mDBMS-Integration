@@ -1,5 +1,10 @@
 # mDBMS-Integration
 
+### Cara clone
+```bash
+git clone --recurse-submodules https://github.com/InfedmixDBMS/mDBMS-Integration.git
+```
+
 Cara menjalankan
 1. Sync submodules:
    ```bash
