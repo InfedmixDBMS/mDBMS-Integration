@@ -18,7 +18,7 @@ class IntegratedStorageManager(AbstractStorageManager):
     #   operand -> int | str | float
 
     def read_block(self, data_retrieval: DataRetrieval) -> Rows:
-        return self.engine.read_block(data_retrieval)
+        return StorageEngine.read_block(data_retrieval)
     
     # DataWrite: 
     #   table -> str,
@@ -27,14 +27,14 @@ class IntegratedStorageManager(AbstractStorageManager):
     #   new_value -> List[T] | None
     
     def write_block(self, data_write: DataWrite) -> int:
-        return self.engine.write_block(data_write)
+        return StorageEngine.write_block(data_write)
     
     # DataDeletion: 
     #   table -> str,
     #   conditions -> List[Condition]
 
     def delete_block(self, data_deletion: DataDeletion) -> int:
-        return self.engine.delete_block(data_deletion)
+        return StorageEngine.delete_block(data_deletion)
     
     # Schema:
     #   columns:
@@ -46,7 +46,13 @@ class IntegratedStorageManager(AbstractStorageManager):
     #   size: int (auto-calculated, ga perlu dihitung manual)
     
     def create_table(self, table_name: str, schema: Schema) -> bool:
-        return self.engine.create_table(table_name, schema)
+        return StorageEngine.create_table(table_name, schema)
     
     def drop_table(self, table_name: str) -> bool:
-        return self.engine.drop_table(table_name)
+        return StorageEngine.drop_table(table_name)
+    
+    def get_next_row_id(self, table: str) -> int:
+        return StorageEngine.get_next_row_id(table)
+    
+    # def load_schema(self, table: str) -> list:
+    #     return StorageEngine.load_schema(table)
