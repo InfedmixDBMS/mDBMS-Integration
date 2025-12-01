@@ -37,6 +37,7 @@ Available commands:
   rollback            Rollback transaction
   show tables         List all tables
   show data <table>   Show all data in table
+  EXPLAIN             Returns the cost of a query
 """)
 
 def cli_loop():
@@ -105,6 +106,16 @@ def cli_loop():
                         print(row)
                 else:
                     print("No data or error.")
+            elif cmd.lower().startswith("explain "):
+                    sql = cmd[8:].strip()
+                    try:
+                        plan = processor.optimizer.optimize(sql)
+                        if hasattr(plan, 'print_tree'):
+                            print(plan.print_tree())
+                        else:
+                            print("Query plan tree not available.")
+                    except Exception as e:
+                        print(f"EXPLAIN error: {e}")
             else:
                 # Sisa = SQL Statement
                 sql = cmd
