@@ -124,11 +124,11 @@ class IntegratedConcurrencyManager(AbstractConcurrencyControlManager):
                     granted = False
                 
                 if self.verbose:
-                    print(f"{self.tag} Lock response for {transaction_id}: Status={status_str}, Granted={granted}")
+                    print(f"{self.tag} Lock response for {transaction_id}: Status={status_str}, Granted={granted}, BlockedBy={response.blocked_by}, ActiveTransactions={response.active_transactions}")
                 
-                return LockResult(granted=granted, status=status_str, wait_time=0.1)
+                return LockResult(granted=granted, status=status_str, wait_time=0.1, blocked_by=response.blocked_by, active_transactions=response.active_transactions)
             
-            return LockResult(granted=True, status="GRANTED")
+            return LockResult(granted=True, status="GRANTED", active_transactions=response.active_transactions)
             
         except Exception as e:
             if self.verbose:
