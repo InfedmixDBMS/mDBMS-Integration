@@ -1,4 +1,25 @@
 {
+  "products": {
+    "file_path": "storage/data/products.dat",
+    "row_size": 0,
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "length": 4
+      },
+      {
+        "name": "name",
+        "type": "varchar",
+        "length": 50
+      },
+      {
+        "name": "price",
+        "type": "int",
+        "length": 4
+      }
+    ]
+  },
   "mahasiswa": {
     "file_path": "storage/data/mahasiswa.dat",
     "row_size": 0,
@@ -20,8 +41,8 @@
       }
     ]
   },
-  "products": {
-    "file_path": "storage/data/products.dat",
+  "customers": {
+    "file_path": "storage/data/customers.dat",
     "row_size": 0,
     "columns": [
       {
@@ -32,11 +53,84 @@
       {
         "name": "name",
         "type": "varchar",
-        "length": 100
+        "length": 50
       },
       {
-        "name": "price",
-        "type": "float",
+        "name": "city",
+        "type": "varchar",
+        "length": 50
+      }
+    ]
+  },
+  "orders": {
+    "file_path": "storage/data/orders.dat",
+    "row_size": 0,
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "length": 4
+      },
+      {
+        "name": "customer_id",
+        "type": "int",
+        "length": 4
+      },
+      {
+        "name": "product",
+        "type": "varchar",
+        "length": 50
+      },
+      {
+        "name": "amount",
+        "type": "int",
+        "length": 4
+      }
+    ]
+  },
+  "department": {
+    "file_path": "storage/data/department.dat",
+    "row_size": 0,
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "length": 4
+      },
+      {
+        "name": "name",
+        "type": "varchar",
+        "length": 50
+      },
+      {
+        "name": "location",
+        "type": "varchar",
+        "length": 50
+      }
+    ]
+  },
+  "employee": {
+    "file_path": "storage/data/employee.dat",
+    "row_size": 0,
+    "columns": [
+      {
+        "name": "id",
+        "type": "int",
+        "length": 4
+      },
+      {
+        "name": "name",
+        "type": "varchar",
+        "length": 50
+      },
+      {
+        "name": "salary",
+        "type": "int",
+        "length": 4
+      },
+      {
+        "name": "department_id",
+        "type": "int",
         "length": 4
       }
     ]
