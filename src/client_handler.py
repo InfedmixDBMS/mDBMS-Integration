@@ -29,6 +29,7 @@ class RetryItem:
     transaction_id: int = field(compare=False)
     query: str = field(compare=False)
     failed_by: int = field(compare=False)  # Transaction ID that caused the failure
+    wait_event: threading.Event = field(default=None, compare=False)  # Event to wait on
 
 
 class ClientHandler:
@@ -308,46 +309,64 @@ class ClientHandler:
                 print(f"{Colors.OKBLUE}[SERVER] Triggered {len(items)} retries after TID {tid} completed{Colors.ENDC}")
     
     def _retry_processor(self):
+        """Event-driven retry processor - waits on events instead of polling"""
         while self.running:
             try:
-                if not self.retry_queue.empty():
-                    retry_item = self.retry_queue.get(timeout=1.0)
+                # Try to get a retry item with timeout
+                try:
+                    retry_item = self.retry_queue.get(timeout=0.5)
+                except:
+                    continue
+                
+                # If we have a wait event, use event-driven waiting
+                if retry_item.wait_event is not None:
+                    print(f"{Colors.OKCYAN}[SERVER] Waiting on event for client {retry_item.client_id}, TID {retry_item.transaction_id}{Colors.ENDC}")
                     
-                    # Attempt retry
-                    print(f"{Colors.OKCYAN}[SERVER] Retrying query for client {retry_item.client_id}, TID {retry_item.transaction_id}{Colors.ENDC}")
+                    # Wait for the event to be signaled (with timeout for safety)
+                    signaled = retry_item.wait_event.wait(timeout=30.0)
                     
-                    # Check client connection
-                    with self.clients_lock:
-                        if retry_item.client_id not in self.clients:
-                            print(f"{Colors.WARNING}[SERVER] Client {retry_item.client_id} disconnected, skipping retry{Colors.ENDC}")
-                            continue
-                        client_socket = self.clients[retry_item.client_id]
-                    
-                    # Execute query
-                    result = self.processor.execute_query(retry_item.query)
-                    
-                    # Send result back to client
-                    response = self._result_to_dict(result)
-                    response['retried'] = True
-                    response['original_transaction_id'] = retry_item.transaction_id
-                    
-                    try:
-                        self._send_message(client_socket, response)
-                    except:
-                        print(f"{Colors.WARNING}[SERVER] Failed to send retry result to {retry_item.client_id}{Colors.ENDC}")
-                    
-                    # If still failed, re-queue with delay
-                    if not result.success and 'Lock denied' in str(result.error):
-                        time.sleep(0.5)
-                        retry_item.priority = time.time()
-                        with self.retry_lock:
-                            self.retry_queue.put(retry_item)
+                    if not signaled:
+                        print(f"{Colors.WARNING}[SERVER] Event wait timeout for TID {retry_item.transaction_id}, retrying anyway{Colors.ENDC}")
                 else:
-                    time.sleep(0.1)
+                    # Fallback to sleep if no event available
+                    time.sleep(0.5)
+                
+                # Attempt retry
+                print(f"{Colors.OKCYAN}[SERVER] Retrying query for client {retry_item.client_id}, TID {retry_item.transaction_id}{Colors.ENDC}")
+                
+                # Check client connection
+                with self.clients_lock:
+                    if retry_item.client_id not in self.clients:
+                        print(f"{Colors.WARNING}[SERVER] Client {retry_item.client_id} disconnected, skipping retry{Colors.ENDC}")
+                        continue
+                    client_socket = self.clients[retry_item.client_id]
+                
+                # Execute query
+                result = self.processor.execute_query(retry_item.query)
+                
+                # Send result back to client
+                response = self._result_to_dict(result)
+                response['retried'] = True
+                response['original_transaction_id'] = retry_item.transaction_id
+                
+                try:
+                    self._send_message(client_socket, response)
+                except Exception as e:
+                    print(f"{Colors.WARNING}[SERVER] Failed to send retry result to {retry_item.client_id}: {e}{Colors.ENDC}")
+                
+                # If still failed, re-queue
+                if not result.success and 'Lock denied' in str(result.error):
+                    # Get new wait event if available
+                    retry_item.priority = time.time()
+                    # Event will be refreshed by the CCM on next attempt
+                    with self.retry_lock:
+                        self.retry_queue.put(retry_item)
                     
             except Exception as e:
                 if self.running:
                     print(f"{Colors.FAIL}[SERVER] Retry processor error: {e}{Colors.ENDC}")
+                    import traceback
+                    traceback.print_exc()
                 time.sleep(0.1)
     
     def _result_to_dict(self, result: ExecutionResult) -> dict:

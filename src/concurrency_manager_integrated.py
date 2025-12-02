@@ -1,6 +1,8 @@
+import threading
 from QueryProcessor.interfaces import AbstractConcurrencyControlManager
 from QueryProcessor.interfaces.concurrency_control_interface import LockResult
 from ConcurrencyControl.src.concurrency_control_manager import ConcurrencyControlManager
+from ConcurrencyControl.src.lock_based_concurrency_control_manager import LockBasedConcurrencyControlManager
 from ConcurrencyControl.src.row_action import TableAction
 from ConcurrencyControl.src.transaction_status import TransactionStatus
 from ConcurrencyControl.src.concurrency_response import LockStatus
@@ -112,6 +114,7 @@ class IntegratedConcurrencyManager(AbstractConcurrencyControlManager):
             if response:
                 status_str = "FAILED"
                 granted = False
+                wait_event = None
                 
                 if response.status == LockStatus.GRANTED:
                     status_str = "GRANTED"
@@ -119,6 +122,9 @@ class IntegratedConcurrencyManager(AbstractConcurrencyControlManager):
                 elif response.status == LockStatus.WAITING:
                     status_str = "WAITING"
                     granted = False  # NOT granted yet, should retry
+                    # Get the event for event-driven waiting (if CCM supports it)
+                    if isinstance(self.ccm, LockBasedConcurrencyControlManager):
+                        wait_event = self.ccm.get_wait_event(transaction_id)
                 elif response.status == LockStatus.FAILED:
                     status_str = "FAILED"
                     granted = False
@@ -126,7 +132,11 @@ class IntegratedConcurrencyManager(AbstractConcurrencyControlManager):
                 if self.verbose:
                     print(f"{self.tag} Lock response for {transaction_id}: Status={status_str}, Granted={granted}, BlockedBy={response.blocked_by}, ActiveTransactions={response.active_transactions}")
                 
-                return LockResult(granted=granted, status=status_str, wait_time=0.1, blocked_by=response.blocked_by, active_transactions=response.active_transactions)
+                result = LockResult(granted=granted, status=status_str, wait_time=0.1, blocked_by=response.blocked_by, active_transactions=response.active_transactions)
+                # Add wait_event if available
+                if wait_event is not None:
+                    result.wait_event = wait_event
+                return result
             
             return LockResult(granted=True, status="GRANTED", active_transactions=response.active_transactions)
             
