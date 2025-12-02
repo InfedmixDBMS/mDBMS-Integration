@@ -40,6 +40,17 @@ Jalankan server, lalu di terminal lain:
 python test_client.py
 ```
 
+Menjalankan test multiple client:
+```bash
+python test_client.py stress 5 # 5 clients
+```
+
+Untuk menjalankan test semua query:
+```bash
+make clean-storage # pastikan storage bersih
+python test_client.py all
+```
+
 ## Utility
 
 Bersihkan storage:

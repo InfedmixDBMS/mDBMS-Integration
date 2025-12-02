@@ -951,10 +951,17 @@ def test_all_sql_commands():
         result = client.execute_query("SELECT salary FROM employee WHERE id = 1")
         if result.get('success') and result.get('rows'):
             rows = result['rows']['data']
-            if rows and rows[0][1] == 5500:  # Assuming salary is second column after __row_id
-                print(f"{Colors.OKGREEN}   ✓ Update verified: salary = 5500{Colors.ENDC}")
+            columns = result['rows']['columns']
+            if rows and len(rows) > 0:
+                # Find salary column index
+                salary_idx = columns.index('salary') if 'salary' in columns else -1
+                if salary_idx >= 0 and len(rows[0]) > salary_idx and rows[0][salary_idx] == 5500:
+                    print(f"{Colors.OKGREEN}   ✓ Update verified: salary = 5500{Colors.ENDC}")
+                else:
+                    actual_val = rows[0][salary_idx] if salary_idx >= 0 and len(rows[0]) > salary_idx else 'N/A'
+                    print(f"{Colors.WARNING}   ⚠ Update verification: expected 5500, got {actual_val}{Colors.ENDC}")
             else:
-                print(f"{Colors.WARNING}   ⚠ Update verification: unexpected value{Colors.ENDC}")
+                print(f"{Colors.WARNING}   ⚠ Update verification: no rows returned{Colors.ENDC}")
         
         run_test(
             "UPDATE with expression (1.05 * salary)",
@@ -1011,7 +1018,8 @@ def test_all_sql_commands():
         
         run_test(
             "Complex query - JOIN with WHERE and ORDER BY",
-            "SELECT * FROM employee e JOIN department d ON e.department_id = d.id WHERE e.salary > 2000 ORDER BY e.salary DESC"
+            "SELECT * FROM employee e JOIN department d ON e.department_id = d.id WHERE e.salary > 2000 ORDER BY e.salary DESC",
+            expected_rows=3  # Should return Diana (6300), Alice (5775), and Charlie (4200)
         )
         
         client.commit_transaction()

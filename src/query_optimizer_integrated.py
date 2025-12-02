@@ -32,7 +32,6 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
         self.engine = OptimizationEngine()
         
     def optimize(self, query: str) -> QueryPlan:
-        # Simple regex for DDL/DML
         if re.match(r'^\s*CREATE\s+TABLE', query, re.IGNORECASE):
             return self._parse_create_table(query)
         elif re.match(r'^\s*INSERT\s+INTO', query, re.IGNORECASE):
@@ -45,7 +44,6 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
             return self._parse_drop_table(query)
             
         parsed_query = self.engine.parse_query(query)
-        # parsed_query.print_tree()
         return self.convert_parsed_to_plan(parsed_query)
     
     def convert_parsed_to_plan(self, parsed_query: ParsedQuery) -> QueryPlan:
@@ -55,13 +53,11 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
         node_type = node.type
         
         if node_type == "TABLE":
-            # Leaf node: TableScanNode
             table_name = node.val
-            alias = getattr(node, 'alias', None)  # Get alias if it exists
+            alias = getattr(node, 'alias', None)
             return TableScanNode(table_name=table_name, alias=alias)
         
         elif node_type == "SELECT":
-            # Filter node dengan WHERE condition
             if len(node.childs) == 0:
                 raise ValueError("SELECT node harus memiliki child node")
             
@@ -70,7 +66,6 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
             return FilterNode(child = child_plan, condition = condition)
         
         elif node_type == "PROJECT":
-            # Project node dengan SELECT columns
             if len(node.childs) == 0:
                 raise ValueError("PROJECT node harus memiliki child node")
             
@@ -79,7 +74,6 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
             return ProjectNode(child=child_plan, columns=columns)
         
         elif node_type == "ORDER-BY":
-            # Sort node dengan ORDER BY clause
             if len(node.childs) == 0:
                 raise ValueError("ORDER-BY node harus memiliki child node")
             
@@ -87,19 +81,29 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
             order_by_clauses = self._parse_order_by(node.val)
             return SortNode(child=child_plan, order_by=order_by_clauses)
         
+        elif node_type == "LIMIT":
+            if len(node.childs) == 0:
+                raise ValueError("LIMIT node harus memiliki child node")
+            
+            child_plan = self._convert_tree_node(node.childs[0])
+            limit_value = int(node.val)
+            
+            if isinstance(child_plan, SortNode):
+                child_plan.limit = limit_value
+                return child_plan
+            else:
+                return SortNode(child=child_plan, order_by=[], limit=limit_value)
+        
         elif node_type == "JOIN":
-            # Join node dengan kondisi JOIN
             if len(node.childs) < 2:
                 raise ValueError("JOIN node harus memiliki minimal 2 child nodes")
             
             left_plan = self._convert_tree_node(node.childs[0])
             right_plan = self._convert_tree_node(node.childs[1])
             
-            # Extract table names untuk JoinCondition
             left_table = self._extract_table_name(node.childs[0])
             right_table = self._extract_table_name(node.childs[1])
             
-            # Konversi join condition (None for CROSS JOIN)
             if node.val is None:
                 # CROSS JOIN (no condition)
                 return NestedLoopJoinNode(
@@ -123,40 +127,10 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
                     join_condition=join_condition
                 )
         
-        elif node_type == "GROUP-BY":
-            # TODO: Implementasi GROUP BY belum ada di QueryPlan
-            # Sementara skip GROUP BY dan convert child saja
-            if len(node.childs) > 0:
-                return self._convert_tree_node(node.childs[0])
-            raise ValueError("GROUP-BY node belum diimplementasikan")
-        
-        elif node_type == "HAVING":
-            # TODO: Implementasi HAVING belum ada di QueryPlan
-            if len(node.childs) > 0:
-                return self._convert_tree_node(node.childs[0])
-            raise ValueError("HAVING node belum diimplementasikan")
-        
-        elif node_type == "CARTESIAN-PRODUCT":
-            # TODO: Implementasi Cartesian Product belum ada di QueryPlan
-            raise ValueError("CARTESIAN-PRODUCT belum diimplementasikan")
-        
-        elif node_type == "NATURAL-JOIN":
-            # TODO: Implementasi Natural Join belum ada di QueryPlan
-            raise ValueError("NATURAL-JOIN belum diimplementasikan")
-        
-        elif node_type == "HASH-JOIN":
-            # TODO: Implementasi Hash Join belum ada di QueryPlan
-            raise ValueError("HASH-JOIN belum diimplementasikan")
-        
-        elif node_type == "LIMIT":
-            # TODO: LIMIT bisa ditambahkan ke SortNode
-            raise ValueError("LIMIT node belum diimplementasikan secara terpisah")
-        
         else:
             raise ValueError(f"Unknown node type: {node_type}")
     
     def _convert_condition(self, condition_node: ConditionNode) -> Union[WhereCondition, LogicalCondition]:
-        
         if condition_node is None:
             return None
         
@@ -177,12 +151,9 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
             raise ValueError(f"Unknown condition type: {type(condition_node)}")
     
     def _parse_simple_condition(self, condition_str: str) -> WhereCondition:
-        """
-        Parse string kondisi sederhana seperti "age > 25" menjadi WhereCondition
-        """
         condition_str = condition_str.strip()
         
-        operators = ['>=', '<=', '!=', '=', '>', '<', 'LIKE', 'IN', 'BETWEEN']
+        operators = ['>=', '<=', '<>', '!=', '=', '>', '<', 'LIKE', 'IN', 'BETWEEN']
         
         for op in operators:
             if op in condition_str:
@@ -203,9 +174,6 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
         raise ValueError(f"Cannot parse condition: {condition_str}")
     
     def _parse_value(self, value_str: str):
-        """
-        Parse nilai dari string menjadi tipe data yang sesuai
-        """
         value_str = value_str.strip()
         
         # String literal (quoted)
@@ -233,6 +201,9 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
         elif value_str.upper() == 'NULL':
             return None
         
+        if any(op in value_str for op in ['*', '/', '+', '-']):
+            return value_str
+        
         if '.' in value_str or value_str.replace('_', '').isalnum():
             from QueryProcessor.models.conditions import ColumnReference
             col_ref = ColumnReference(value_str)
@@ -241,9 +212,6 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
         return value_str
     
     def _parse_order_by(self, order_by_val) -> List[OrderByClause]:
-        """
-        Parse ORDER BY value menjadi list of OrderByClause
-        """
         if isinstance(order_by_val, list):
             clauses = []
             for item in order_by_val:
@@ -260,9 +228,6 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
             return [OrderByClause(column=column, direction=direction)]
     
     def _extract_table_name(self, node: QueryTree) -> str:
-        """
-        Ekstrak nama tabel dari QueryTree node (recursive)
-        """
         if node.type == "TABLE":
             return node.val
         elif len(node.childs) > 0:
@@ -346,7 +311,12 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
         return UpdatePlan(table_name=table_name, set_clause=set_clause, where=where_condition)
 
     def _parse_drop_table(self, query: str) -> DropTablePlan:
+        # DROP TABLE [IF EXISTS] table_name
+        match = re.match(r'^\s*DROP\s+TABLE\s+IF\s+EXISTS\s+(\w+)', query, re.IGNORECASE)
+        if match:
+            return DropTablePlan(table_name=match.group(1), if_exists=True)
+        
         match = re.match(r'^\s*DROP\s+TABLE\s+(\w+)', query, re.IGNORECASE)
         if not match:
             raise ValueError("Invalid DROP TABLE syntax")
-        return DropTablePlan(table_name=match.group(1))
+        return DropTablePlan(table_name=match.group(1), if_exists=False)
