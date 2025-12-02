@@ -1,27 +1,48 @@
 # mDBMS-Integration
 
-### Cara clone
+Sistem manajemen database terdistribusi dengan arsitektur client-server.
+
+## Setup
+
+Clone repository dengan submodules:
 ```bash
 git clone --recurse-submodules https://github.com/InfedmixDBMS/mDBMS-Integration.git
+cd mDBMS-Integration
+git submodule update --init --recursive
 ```
 
-Cara menjalankan
-1. Sync submodules:
-   ```bash
-   git submodule update --init --recursive
-   ```
+## Cara Menjalankan
 
-2. Jalankan program utama:
-   ```bash
-   python main.py
-   ```
+### 1. Jalankan Server
+```bash
+python server.py
+```
 
-3. Untuk menjalankan unit testing seluruh sistem:
-   ```bash
-   python test_system_integration.py
-   ```
+### 2. Jalankan Client
+Di terminal lain:
+```bash
+python client.py
+```
 
-4. Untuk membersihkan data dan katalog storage manager:
-   ```bash
-   make clean-storage
-   ```
+### 3. Gunakan SQL Commands
+```sql
+dbms> CREATE TABLE mahasiswa (nim INT, nama VARCHAR, ipk FLOAT)
+dbms> INSERT INTO mahasiswa VALUES (123, 'Budi', 3.5)
+dbms> SELECT * FROM mahasiswa
+```
+
+Ketik `help` untuk melihat perintah lengkap, `exit` untuk keluar.
+
+## Testing
+
+Jalankan server, lalu di terminal lain:
+```bash
+python test_client.py
+```
+
+## Utility
+
+Bersihkan storage:
+```bash
+make clean-storage
+```
