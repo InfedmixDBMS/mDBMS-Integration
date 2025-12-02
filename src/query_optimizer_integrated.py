@@ -57,7 +57,8 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
         if node_type == "TABLE":
             # Leaf node: TableScanNode
             table_name = node.val
-            return TableScanNode(table_name = table_name)
+            alias = getattr(node, 'alias', None)  # Get alias if it exists
+            return TableScanNode(table_name=table_name, alias=alias)
         
         elif node_type == "SELECT":
             # Filter node dengan WHERE condition
@@ -98,20 +99,29 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
             left_table = self._extract_table_name(node.childs[0])
             right_table = self._extract_table_name(node.childs[1])
             
-            # Konversi join condition
-            condition = self._convert_condition(node.val)
-            join_condition = JoinCondition(
-                left_table=left_table,
-                right_table=right_table,
-                condition=condition,
-                join_type="INNER JOIN"
-            )
-            
-            return NestedLoopJoinNode(
-                left_child=left_plan,
-                right_child=right_plan,
-                join_condition=join_condition
-            )
+            # Konversi join condition (None for CROSS JOIN)
+            if node.val is None:
+                # CROSS JOIN (no condition)
+                return NestedLoopJoinNode(
+                    left_child=left_plan,
+                    right_child=right_plan,
+                    join_condition=None
+                )
+            else:
+                # INNER JOIN with condition
+                condition = self._convert_condition(node.val)
+                join_condition = JoinCondition(
+                    left_table=left_table,
+                    right_table=right_table,
+                    condition=condition,
+                    join_type="INNER JOIN"
+                )
+                
+                return NestedLoopJoinNode(
+                    left_child=left_plan,
+                    right_child=right_plan,
+                    join_condition=join_condition
+                )
         
         elif node_type == "GROUP-BY":
             # TODO: Implementasi GROUP BY belum ada di QueryPlan
@@ -146,6 +156,9 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
             raise ValueError(f"Unknown node type: {node_type}")
     
     def _convert_condition(self, condition_node: ConditionNode) -> Union[WhereCondition, LogicalCondition]:
+        
+        if condition_node is None:
+            return None
         
         if isinstance(condition_node, ConditionLeaf):
             return self._parse_simple_condition(condition_node.condition)
@@ -219,6 +232,11 @@ class IntegratedQueryOptimizer(AbstractQueryOptimizer):
             return False
         elif value_str.upper() == 'NULL':
             return None
+        
+        if '.' in value_str or value_str.replace('_', '').isalnum():
+            from QueryProcessor.models.conditions import ColumnReference
+            col_ref = ColumnReference(value_str)
+            return col_ref
         
         return value_str
     
