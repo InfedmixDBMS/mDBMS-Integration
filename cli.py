@@ -1,4 +1,8 @@
 import sys
+import os
+
+sys.path.append(os.path.join(os.getcwd(), "StorageManager"))
+
 from src.concurrency_manager_integrated import IntegratedConcurrencyManager
 from src.storage_manager_integrated import IntegratedStorageManager
 from src.query_optimizer_integrated import IntegratedQueryOptimizer
@@ -119,7 +123,7 @@ def cli_loop():
             else:
                 # Sisa = SQL Statement
                 sql = cmd
-                res = processor.execute_query(sql, current_tid)
+                res = processor.execute_query(sql)
                 if hasattr(res, 'success') and res.success:
                     print("Query OK.")
                     if hasattr(res, 'rows') and res.rows:
