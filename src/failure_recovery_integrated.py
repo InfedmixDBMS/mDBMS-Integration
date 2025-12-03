@@ -22,8 +22,9 @@ class IntegratedFailureRecoveryManager(AbstractFailureRecoveryManager):
             query_type = execution_result.query.strip().upper().split()[0] if execution_result.query else "OPERATION"
             print(f"{self.tag} Logged {query_type} for transaction {execution_result.transaction_id}")
         
-        # buat debug only, harusnya: len(FailureRecoveryManager.buffer) > 10
-        if execution_result.query and execution_result.query.strip().upper().startswith("COMMIT"):
+        if (execution_result.query and
+            execution_result.query.strip().upper().startswith("COMMIT") and
+            len(FailureRecoveryManager.buffer) > 10):
             if self.verbose:
                 print(f"{self.tag} Triggering checkpoint (buffer size: {len(FailureRecoveryManager.buffer)})")
             FailureRecoveryManager._save_checkpoint()
