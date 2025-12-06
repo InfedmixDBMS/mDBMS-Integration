@@ -234,32 +234,48 @@ def test_event_cleanup():
     
     ccm = LockBasedConcurrencyControlManager()
     
-    # Create transaction
+    # Create transactions
     t1 = ccm.transaction_begin()
-    print(f"\n[Step 1] Created T{t1}")
+    t2 = ccm.transaction_begin()
+    print(f"\n[Step 1] Created T{t1} and T{t2}")
     
-    # Verify event exists
-    assert t1 in ccm.waiting_events, "Event should exist"
-    print(f"  ✅ Event created in waiting_events")
+    # T2 acquires lock
+    ccm.transaction_query(t2, TableAction.WRITE, 'X')
     
-    # Do some operations
-    ccm.transaction_query(t1, TableAction.READ, 'X')
+    # T1 tries to acquire and waits
+    ccm.transaction_query(t1, TableAction.WRITE, 'X')
+    
+    # Verify event exists in resource_waiters
+    assert 'X' in ccm.resource_waiters, "Resource X should be in waiters"
+    assert t1 in ccm.resource_waiters['X'], "T1 should be waiting for X"
+    print(f"  ✅ T{t1} registered in resource_waiters['X']")
+    
+    # T2 commits
+    ccm.transaction_commit(t2)
+    ccm.transaction_commit_flushed(t2)
+    
+    # T1 acquires the lock
+    ccm.transaction_query(t1, TableAction.WRITE, 'X')
     ccm.transaction_commit(t1)
     ccm.transaction_commit_flushed(t1)
     
     print(f"\n[Step 2] Committing and ending transaction...")
     ccm.transaction_end(t1)
+    ccm.transaction_end(t2)
     
     # Verify cleanup
     print(f"\n[Step 3] Verifying cleanup...")
-    print(f"  T{t1} in waiting_events: {t1 in ccm.waiting_events}")
-    assert t1 not in ccm.waiting_events, "Event should be cleaned up"
-    print(f"  ✅ Event properly cleaned up")
     
-    # Verify no resource waiters
-    for resource in ccm.resource_waiters.values():
-        assert t1 not in resource, f"T{t1} should not be in any resource waiters"
-    print(f"  ✅ Removed from all resource waiters")
+    # Check that T1 is not in any resource waiters
+    found_in_waiters = False
+    for resource, waiters in ccm.resource_waiters.items():
+        if t1 in waiters:
+            found_in_waiters = True
+            break
+    
+    assert not found_in_waiters, "T1 should not be in any resource waiters"
+    print(f"  ✅ T{t1} removed from all resource waiters")
+    print(f"  ✅ Events properly cleaned up")
     
     print("\n" + "="*70)
     print("TEST PASSED ✅")
