@@ -207,6 +207,10 @@ class ClientHandler:
             return self._handle_commit(client_id, message)
         elif request_type == 'rollback':
             return self._handle_rollback(client_id, message)
+        elif request_type == 'analyze':
+            return self._handle_analyze(client_id, message)
+        elif request_type == 'defragment':
+            return self._handle_defragment(client_id, message)
         else:
             return {'success': False, 'error': 'Unknown request type'}
     
@@ -278,7 +282,37 @@ class ClientHandler:
             return self._result_to_dict(result)
         except Exception as e:
             return {'success': False, 'error': str(e)}
-    
+
+    def _handle_analyze(self, client_id: str, message: dict) -> dict:
+        table_name = message.get('table_name')
+        if not table_name:
+            return {'success': False, 'error': 'ANALYZE Table name not provided'}
+        print(f"{Colors.OKCYAN}[SERVER] Received ANALYZE request for table '{table_name}' from {client_id}{Colors.ENDC}")
+
+        try:
+            if self.processor.storage_manager.update_stats(table_name):
+                return {"success": True}
+            else:
+                raise Exception
+        except Exception as e:
+            print(f"{Colors.FAIL}[SERVER] Error ANALYZING table '{table_name}'.{Colors.ENDC}")
+            return {'success': False, 'error': str(e)}
+
+    def _handle_defragment(self, client_id: str, message: dict) -> dict:
+        table_name = message.get('table_name')
+        if not table_name:
+            return {'success': False, 'error': 'DEFRAGMENT Table name not provided'}
+        print(f"{Colors.OKCYAN}[SERVER] Received DEFRAGMENT request for table '{table_name}' from {client_id}{Colors.ENDC}")
+
+        try:
+            if self.processor.storage_manager.defragment(table_name):
+                return {"success": True}
+            else:
+                raise Exception
+        except Exception as e:
+            print(f"{Colors.FAIL}[SERVER] Error DEFRAGMENT table '{table_name}'.{Colors.ENDC}")
+            return {'success': False, 'error': str(e)}
+
     def _add_to_retry_queue(self, client_id: str, tid: int, query: str, error: str):
         failed_by = None
         
