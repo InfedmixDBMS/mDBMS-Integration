@@ -113,6 +113,7 @@ class IntegratedConcurrencyManager(AbstractConcurrencyControlManager):
                 status_str = "FAILED"
                 granted = False
                 wait_event = None
+                message = response.reason
                 
                 if response.status == LockStatus.GRANTED:
                     status_str = "GRANTED"
@@ -130,7 +131,7 @@ class IntegratedConcurrencyManager(AbstractConcurrencyControlManager):
                 if self.verbose:
                     print(f"{self.tag} Lock response for {transaction_id}: Status={status_str}, Granted={granted}, BlockedBy={response.blocked_by}, ActiveTransactions={response.active_transactions}")
                 
-                result = LockResult(granted=granted, status=status_str, wait_time=0.1, blocked_by=response.blocked_by, active_transactions=response.active_transactions)
+                result = LockResult(granted=granted, status=status_str, wait_time=0.1, blocked_by=response.blocked_by, active_transactions=response.active_transactions, message=message)
                 # Add wait_event if available
                 if wait_event is not None:
                     result.wait_event = wait_event
