@@ -216,14 +216,17 @@ class ClientHandler:
     
     def _handle_execute(self, client_id: str, message: dict) -> dict:
         query = message.get('query', '')
+        transaction_id = message.get('transaction_id')
         
         try:
-            result = self.processor.execute_query(query)
+            result = self.processor.execute_query(query, transaction_id)
             
             if not result.success and 'Lock denied' in str(result.error):
-                thread_id = threading.get_ident()
-                with self.processor._lock:
-                    tid = self.processor.thread_transactions.get(thread_id)
+                tid = transaction_id
+                if tid is None:
+                    thread_id = threading.get_ident()
+                    with self.processor._lock:
+                        tid = self.processor.thread_transactions.get(thread_id)
                 
                 if tid:
                     self._add_to_retry_queue(client_id, tid, query, result.error)
@@ -375,8 +378,8 @@ class ClientHandler:
                         continue
                     client_socket = self.clients[retry_item.client_id]
                 
-                # Execute query
-                result = self.processor.execute_query(retry_item.query)
+                # Execute query with transaction context
+                result = self.processor.execute_query(retry_item.query, retry_item.transaction_id)
                 
                 # Send result back to client
                 response = self._result_to_dict(result)
