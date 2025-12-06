@@ -76,12 +76,47 @@ class DBClient:
             data += chunk
         return data
     
-    def execute_query(self, query: str) -> dict:
+    def execute_query(self, query: str, timeout: float = 30.0) -> dict:
         request = {
             'type': 'execute',
             'query': query
         }
-        return self._send_request(request)
+        if self.current_tid is not None:
+            request['transaction_id'] = self.current_tid
+        
+        response = self._send_request(request)
+        
+        if response.get('queued_for_retry'):
+            response = self._receive_response(timeout=timeout)
+        
+        return response
+    
+    def _receive_response(self, timeout: float = 30.0) -> dict:
+        """Receive a response message without sending a request first"""
+        try:
+            old_timeout = self.socket.gettimeout()
+            self.socket.settimeout(timeout)
+            
+            length_data = self._recv_exact(4)
+            if not length_data:
+                return {'success': False, 'error': 'Connection lost'}
+            
+            message_length = int.from_bytes(length_data, byteorder='big')
+            
+            message_data = self._recv_exact(message_length)
+            if not message_data:
+                return {'success': False, 'error': 'Connection lost'}
+            
+            response = json.loads(message_data.decode('utf-8'))
+            
+            self.socket.settimeout(old_timeout)
+            
+            return response
+            
+        except socket.timeout:
+            return {'success': False, 'error': f'Timeout waiting for retry response ({timeout}s)'}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
     
     def begin_transaction(self) -> dict:
         request = {'type': 'begin'}

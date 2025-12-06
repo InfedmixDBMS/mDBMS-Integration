@@ -32,9 +32,17 @@ class IntegratedConcurrencyManager(AbstractConcurrencyControlManager):
                 if self.verbose:
                     print(f"{self.tag} Commit failed for {transaction_id}: Status is {status}")
                 return False
-            self.ccm.transaction_commit(transaction_id)
+            
+            response = self.ccm.transaction_commit(transaction_id)
+            
+            if response and response.status == LockStatus.FAILED:
+                if self.verbose:
+                    print(f"{self.tag} Commit failed for {transaction_id}: {response.reason}")
+                return False
+            
             self.ccm.transaction_commit_flushed(transaction_id)
             self.ccm.transaction_end(transaction_id)
+            
             if self.verbose:
                 print(f"{self.tag} Transaction {transaction_id} committed")
             return True
@@ -53,32 +61,22 @@ class IntegratedConcurrencyManager(AbstractConcurrencyControlManager):
     
     def rollback_transaction(self, transaction_id: int) -> bool:
         try:
-            self.ccm.transaction_rollback(transaction_id)
+            status = self.ccm.transaction_get_status(transaction_id)
+            
+            if status == TransactionStatus.ACTIVE:
+                self.ccm.transaction_rollback(transaction_id)
+            elif status in [TransactionStatus.FAILED, TransactionStatus.ABORTED]:
+                if self.verbose:
+                    print(f"{self.tag} Transaction {transaction_id} already aborted by protocol")
+            else:
+                if self.verbose:
+                    print(f"{self.tag} Cannot rollback transaction {transaction_id} in state {status}")
+                return False
+            
             return True
-            # status = self.ccm.transaction_get_status(transaction_id)
-            # if status == TransactionStatus.ACTIVE:
-            #     self.ccm.transaction_rollback(transaction_id)
-            #     self.ccm.transaction_abort(transaction_id)
-            #     self.ccm.transaction_end(transaction_id)
-            #     return True
-            # elif status == TransactionStatus.PARTIALLY_COMMITTED:
-            #     self.ccm.transaction_rollback(transaction_id)
-            #     self.ccm.transaction_abort(transaction_id)
-            #     self.ccm.transaction_end(transaction_id)
-            #     return True
-            # elif status == TransactionStatus.FAILED:
-            #     try:
-            #         self.ccm.transaction_abort(transaction_id)
-            #     except:
-            #         pass
-            #     self.ccm.transaction_end(transaction_id)
-            #     return True
-            # elif status == TransactionStatus.ABORTED:
-            #     self.ccm.transaction_end(transaction_id)
-            #     return True
-            # return False
         except Exception as e:
-            print(f"Rollback failed: {e}")
+            if self.verbose:
+                print(f"{self.tag} Rollback failed for transaction {transaction_id}: {e}")
             return False
     
     def end_transaction(self, transaction_id: int) -> bool:
