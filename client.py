@@ -151,6 +151,21 @@ class DBClient:
         if response.get('success'):
             self.current_tid = None
         return response
+    
+    def analyze_table(self, table_name: str) -> dict:
+        request = {
+            'type' : 'analyze',
+            'table_name': table_name
+        }
+        return self._send_request(request)
+
+    def defragment_table(self, table_name: str) -> dict:
+        request = {
+            'type' : 'defragment',
+            'table_name': table_name
+        }
+        return self._send_request(request)
+
 
 
 def print_welcome():
@@ -172,6 +187,8 @@ def print_help():
   {Colors.HEADER}rollback{Colors.ENDC}            Rollback transaction
   {Colors.OKBLUE}show tables{Colors.ENDC}         List all tables
   {Colors.OKBLUE}show data <table>{Colors.ENDC}   Show all data in table
+  {Colors.HEADER}defragment{Colors.ENDC}          Defragment table
+  {Colors.HEADER}analyze{Colors.ENDC}             Analyzes table and update statistics 
 """)
 
 
@@ -258,6 +275,34 @@ def cli_loop():
                         error = response.get('error', 'No data')
                         print(f"{Colors.FAIL}Error: {error}{Colors.ENDC}")
                 
+                elif cmd.lower().startswith("analyze "):
+                    parts = cmd.split(maxsplit=1)
+                    if len(parts) < 2:
+                        print(f"{Colors.FAIL}ERROR: ANALYZE requires a table name.{Colors.ENDC}")
+                        continue
+                    table_name = parts[1]
+                    response = client.analyze_table(table_name)
+
+                    if response.get("success"):
+                        print(f"{Colors.OKGREEN}Table '{table_name}' analyzed succesfully.{Colors.ENDC}")
+                    else:
+                        print(f"{Colors.FAIL}ERROR analyzing table '{table_name}': {response.get('error', 'Unknown error')}{Colors.ENDC}")
+
+                elif cmd.lower().startswith("defragment "):
+                    parts = cmd.split(maxsplit=1)
+                    if len(parts) < 2:
+                        print(f"{Colors.FAIL}ERROR: DEFRAGMENT requires a table name.{Colors.ENDC}")
+                        continue
+                    table_name = parts[1]
+                    response = client.defragment_table(table_name)
+
+                    if response.get("success"):
+                        print(f"{Colors.OKGREEN}Table '{table_name}' defragmented succesfully.{Colors.ENDC}")
+                    else:
+                        print(f"{Colors.FAIL}ERROR defragmenting table'{table_name}': {response.get('error', 'Unknown error')}{Colors.ENDC}")
+                
+
+
                 else:
                     response = client.execute_query(cmd)
                     

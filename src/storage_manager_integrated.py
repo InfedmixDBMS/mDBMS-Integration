@@ -50,6 +50,12 @@ class IntegratedStorageManager(AbstractStorageManager):
     
     def drop_table(self, table_name: str) -> bool:
         return StorageEngine.drop_table(table_name)
+
+    def update_stats(self, table_name:str) -> bool:
+        return StorageEngine.update_stats(table_name)
+
+    def defragment(self, table_name:str) -> bool:
+        return StorageEngine.defragment(table_name)
     
     def get_next_row_id(self, table: str) -> int:
         return StorageEngine.get_next_row_id(table)
